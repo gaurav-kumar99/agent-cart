@@ -163,25 +163,56 @@ const GEMINI_TOOLS = [{
   })
 }];
 
+const GEMINI_MODELS = [GEMINI_MODEL, ...(process.env.GEMINI_FALLBACK_MODELS || "gemini-flash-latest,gemini-flash-lite-latest").split(",").map((m) => m.trim()).filter(Boolean)]
+  .filter((m, i, a) => a.indexOf(m) === i);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Calls Gemini; retries busy (429/503) responses, then falls back to the next model.
+async function callGemini(contents) {
+  let last;
+  for (let m = 0; m < GEMINI_MODELS.length; m++) {
+    const model = GEMINI_MODELS[m];
+    const body = m === 0 ? contents : JSON.parse(JSON.stringify(contents), (k, v) => (k === "thoughtSignature" ? undefined : v));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let res;
+      try {
+        res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, tools: GEMINI_TOOLS, contents: body }),
+          signal: AbortSignal.timeout(20000)
+        });
+      } catch (e) {
+        console.log(`Gemini ${model}: ${e.name}`);
+        last = new Error(e.name === "TimeoutError" ? "The AI took too long to answer. Please try again." : e.message);
+        continue;
+      }
+      console.log(`Gemini ${model}: HTTP ${res.status}`);
+      const data = await res.json();
+      if (res.ok) return data;
+      last = new Error(`Gemini error ${res.status}: ${data?.error?.message || JSON.stringify(data)}`);
+      if (res.status !== 429 && res.status !== 503 && res.status !== 404) throw last; // real error: stop
+      if (res.status === 404) break; // model unavailable: try next model
+      await sleep(1500);
+    }
+  }
+  throw last || new Error("Gemini is unavailable right now.");
+}
+
 async function turnGemini(session, message) {
+  const startLen = session.gemini.length;
+  try {
+    return await turnGeminiInner(session, message);
+  } catch (e) {
+    session.gemini.length = startLen; // drop the half-finished turn so the next message starts clean
+    throw e;
+  }
+}
+
+async function turnGeminiInner(session, message) {
   session.gemini.push({ role: "user", parts: [{ text: message }] });
   for (let step = 0; step < 8; step++) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM }] },
-          tools: GEMINI_TOOLS,
-          contents: session.gemini
-        }),
-        signal: AbortSignal.timeout(25000)
-      }
-    );
-    console.log(`Gemini ${GEMINI_MODEL} step ${step}: HTTP ${res.status}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(`Gemini error ${res.status}: ${data?.error?.message || JSON.stringify(data)}`);
+    const data = await callGemini(session.gemini);
     const content = data.candidates?.[0]?.content;
     if (!content) return "";
     session.gemini.push(content);
