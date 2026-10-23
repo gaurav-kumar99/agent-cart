@@ -204,7 +204,7 @@ let budgetLimit = 200;
 let expandedCategories = {};
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const api = (url, body) => fetch(url, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId, ...body }) } : undefined).then(async (r) => {
+const api = (url, body) => fetch(url, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId, ...body }), signal: AbortSignal.timeout(60000) } : undefined).then(async (r) => {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || "Request failed");
     return data;
