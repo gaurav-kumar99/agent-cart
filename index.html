@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentCart - AI Shopping & Checkout Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #111318 0%, #1c2029 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; color: #f3f4f6; }
+        
+        .app-container { width: 100%; max-width: 1050px; background: #181c24; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); overflow: hidden; display: flex; flex-direction: column; border: 1px solid rgba(212, 175, 55, 0.2); }
+        
+        .main-layout { display: grid; grid-template-columns: 1.4fr 1fr; height: 740px; }
+        @media(max-width: 768px) { .main-layout { grid-template-columns: 1fr; height: auto; } }
+
+        /* Left Side: Store & Categorized Products */
+        .store-section { padding: 24px; border-right: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; gap: 14px; background: #181c24; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-icon { font-size: 24px; background: linear-gradient(135deg, #6b1d2f 0%, #d4af37 100%); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: white; box-shadow: 0 4px 10px rgba(107, 29, 47, 0.4); }
+        .header h1 { font-size: 18px; font-weight: 700; background: linear-gradient(to right, #d4af37, #ff9d00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header p { font-size: 12px; color: #9ca3af; }
+
+        /* Profile Icon */
+        .profile-icon { width: 38px; height: 38px; background: #111318; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #d4af37; font-size: 16px; cursor: pointer; transition: border-color 0.2s; }
+        .profile-icon:hover { border-color: #d4af37; background: rgba(212, 175, 55, 0.1); }
+
+        .search-catalog { width: 100%; background: #111318; border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 10px; padding: 10px 14px; color: white; font-size: 13px; outline: none; transition: border-color 0.2s; }
+        .search-catalog:focus { border-color: #d4af37; }
+
+        /* Category Sections */
+        .category-container { display: flex; flex-direction: column; gap: 10px; }
+        .category-header { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; color: #d4af37; border-bottom: 1px solid rgba(212, 175, 55, 0.15); padding-bottom: 4px; margin-top: 6px; }
+        .show-more-btn { background: none; border: none; color: #ff9d00; font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 6px; }
+        .show-more-btn:hover { text-decoration: underline; }
+
+        .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .product-card { background: #111318; border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s; }
+        .product-card:hover { border-color: #d4af37; transform: translateY(-1px); }
+        .product-name { font-size: 11px; font-weight: 600; color: #e5e7eb; margin-bottom: 4px; line-height: 1.2; }
+        .product-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+        .product-price { font-size: 12px; font-weight: 700; color: #ff9d00; }
+        .add-btn { background: #6b1d2f; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .add-btn:hover { background: #84243b; }
+
+        /* Right Side: AI Assistant & Cart */
+        .assistant-section { padding: 20px; display: flex; flex-direction: column; background: #111318; gap: 8px; overflow-y: auto; }
+        
+        .chat-box { height: 170px; white-space: pre-wrap; background: #181c24; border-radius: 10px; padding: 6px; overflow-y: auto; font-size: 11px; display: flex; flex-direction: column; gap: 4px; border: 1px solid rgba(255,255,255,0.05); }
+        .message.agent { color: #d1d5db; background: rgba(107, 29, 47, 0.15); padding: 4px 6px; border-radius: 6px; border-left: 3px solid #d4af37; }
+        
+        .input-group { display: flex; gap: 6px; }
+        .input-group input { flex: 1; background: #181c24; border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 6px 10px; color: white; font-size: 11px; outline: none; }
+        .input-group input:focus { border-color: #d4af37; }
+        .input-group button { background: #d4af37; color: #111; border: none; padding: 0 12px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: background 0.2s; font-size: 11px; }
+        .input-group button:hover { background: #e5be3b; }
+
+        /* Cart & Checkout Box */
+        .cart-box { background: #181c24; border-radius: 12px; padding: 10px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 6px; }
+        .cart-title { font-size: 11px; font-weight: 600; color: #d4af37; display: flex; justify-content: space-between; }
+        .cart-items { list-style: none; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; max-height: 90px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #d1d5db; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 6px; border-left: 2px solid #6b1d2f; }
+        
+        .remove-btn { background: transparent; border: none; color: #f87171; cursor: pointer; font-size: 9px; font-weight: 600; padding: 2px 4px; border-radius: 4px; transition: background 0.2s; }
+        .remove-btn:hover { background: rgba(248, 113, 113, 0.1); }
+
+        /* Budget Bar */
+        .budget-bar-container { background: #111318; border-radius: 4px; height: 4px; width: 100%; overflow: hidden; margin-top: 2px; }
+        .budget-bar-fill { background: #34d399; height: 100%; width: 0%; transition: width 0.3s; }
+
+        /* Separate Section for My Orders */
+        .orders-section-box { background: #181c24; border-radius: 12px; padding: 10px; border: 1px solid rgba(212, 175, 55, 0.2); display: flex; flex-direction: column; gap: 5px; }
+        .orders-section-title { font-size: 11px; font-weight: 600; color: #d4af37; display: flex; justify-content: space-between; align-items: center; }
+        .orders-list-container { max-height: 75px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 10px; }
+        .order-row { background: rgba(17, 19, 24, 0.8); padding: 5px 8px; border-radius: 6px; border-left: 2px solid #d4af37; color: #d1d5db; display: flex; justify-content: space-between; align-items: center; }
+
+        .cart-total { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: white; border-top: 1px dashed rgba(212, 175, 55, 0.2); padding-top: 4px; }
+        
+        /* Payment Buttons Group */
+        .payment-buttons { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+        .fake-pay-btn { background: #6b1d2f; color: white; border: none; width: 100%; padding: 7px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; transition: background 0.2s; border: 1px solid rgba(212, 175, 55, 0.3); }
+        .fake-pay-btn:hover { background: #84243b; }
+        
+        #paypal-button-container { margin-top: 2px; }
+
+        /* Footer Watermark */
+        .footer-watermark { background: #13161d; border-top: 1px solid rgba(212, 175, 55, 0.15); padding: 8px 24px; text-align: center; font-size: 11px; color: #9ca3af; letter-spacing: 0.5px; }
+        .footer-watermark span { color: #d4af37; font-weight: 600; }
+
+        /* Modal & History Drawer */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #181c24; padding: 25px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; border: 1px solid #d4af37; max-height: 80vh; overflow-y: auto; }
+        .modal h3 { color: #d4af37; margin-bottom: 8px; }
+        .modal p { color: #9ca3af; font-size: 13px; margin-bottom: 20px; }
+        .history-list { text-align: left; font-size: 11px; color: #d1d5db; display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; max-height: 200px; overflow-y: auto; }
+        .history-item { background: #111318; padding: 8px; border-radius: 6px; border-left: 2px solid #d4af37; }
+        .modal button { background: #6b1d2f; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; }
+        .modal button:hover { background: #84243b; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="main-layout">
+        <!-- Left: Store Catalog with Categorized Sections & Show More -->
+        <div class="store-section">
+            <div class="header">
+                <div class="header-left">
+                    <div class="header-icon">🛍️</div>
+                    <div>
+                        <h1>AgentCart</h1>
+                        <p>AI-Powered Smart Catalog</p>
+                    </div>
+                </div>
+                <div class="profile-icon" title="Gaurav Kumar - Click for Order History" onclick="openOrderHistory()">👤</div>
+            </div>
+
+            <input type="text" class="search-catalog" id="catalogSearch" placeholder="Filter products..." oninput="filterCatalog()" />
+            
+            <div id="categorizedCatalog" style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto;">
+                <!-- Dynamically rendered categories -->
+            </div>
+        </div>
+
+        <!-- Right: AI Chat & Cart & My Orders Section -->
+        <div class="assistant-section">
+            <div style="font-size: 11px; font-weight: 600; color: #d4af37;">🤖 Agent Assistant (AI Enabled)</div>
+            <div class="chat-box" id="chatBox">
+                <div class="message agent">Hi Gaurav! Ask me to build a bundle (e.g. "gaming setup under $150") or add items manually.</div>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="userInput" placeholder="Ask AI to pick items..." onkeypress="if(event.key === 'Enter') handleAIQuery()" />
+                <button onclick="handleAIQuery()">Ask</button>
+            </div>
+
+            <!-- Cart Section -->
+            <div class="cart-box">
+                <div class="cart-title">
+                    <span>🛒 Your Cart</span>
+                    <span id="itemCount">0 items</span>
+                </div>
+                <ul class="cart-items" id="cartItems">
+                    <li style="color: #6b7280; text-align: center; font-size: 10px; padding: 2px;">Cart is empty</li>
+                </ul>
+
+                <div style="font-size: 9px; color: #9ca3af; display: flex; justify-content: space-between; margin-top: 2px;">
+                    <span>Budget Usage</span>
+                    <span id="budgetText">$0.00 / $200 limit</span>
+                </div>
+                <div class="budget-bar-container">
+                    <div class="budget-bar-fill" id="budgetBarFill"></div>
+                </div>
+
+                <div class="cart-total">
+                    <span>Total</span>
+                    <span id="cartTotal" style="color: #ff9d00;">$0.00</span>
+                </div>
+            </div>
+
+            <!-- Separate Section for My Orders -->
+            <div class="orders-section-box">
+                <div class="orders-section-title">
+                    <span>📦 My Orders</span>
+                    <span id="orderCountBadge" style="font-size: 9px; color: #9ca3af;">0 completed</span>
+                </div>
+                <div class="orders-list-container" id="myOrdersWidgetList">
+                    <div style="color: #6b7280; text-align: center; font-size: 10px; padding: 4px;">No recent orders placed</div>
+                </div>
+            </div>
+
+            <!-- Payment Actions -->
+            <div class="payment-buttons">
+                <button class="fake-pay-btn" id="payBtn" onclick="checkout()">Pay with PayPal</button>
+                <div id="modeNote" style="font-size:9px;color:#6b7280;text-align:center"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Watermark -->
+    <div class="footer-watermark">
+        made by <span>gaurav</span> in <span>India</span> 🇮🇳
+    </div>
+</div>
+
+<!-- Order History Modal -->
+<div class="modal" id="historyModal">
+    <div class="modal-content">
+        <h3>👤 Gaurav's Profile & Orders</h3>
+        <p style="font-size: 11px; margin-bottom: 10px;">Your saved past purchases and sandbox receipts:</p>
+        <div class="history-list" id="historyList">
+            <div style="color: #6b7280; text-align: center;">No past orders found.</div>
+        </div>
+        <button onclick="closeHistoryModal()">Close</button>
+    </div>
+</div>
+
+<script>
+const sessionId = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now());
+let products = [];
+let cart = [];
+let budgetLimit = 200;
+let expandedCategories = {};
+
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const api = (url, body) => fetch(url, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId, ...body }) } : undefined).then(async (r) => {
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Request failed");
+    return data;
+});
+
+async function init() {
+    try {
+        products = await api("/api/products");
+        renderCatalog();
+        const st = await api("/api/status");
+        document.getElementById("modeNote").textContent = `AI: ${st.ai} | PayPal: ${st.paypal}`;
+    } catch (e) {
+        document.getElementById("categorizedCatalog").innerHTML = `<div style="color:#f87171">Could not load products. Is the server running? (${esc(e.message)})</div>`;
+    }
+    updateCartUI();
+    updateOrdersWidget();
+}
+
+function renderCatalog(filterText = '') {
+    const container = document.getElementById('categorizedCatalog');
+    container.innerHTML = '';
+    const categories = {};
+    products.forEach(p => {
+        if (!filterText || p.name.toLowerCase().includes(filterText) || p.category.includes(filterText)) {
+            (categories[p.category] ||= []).push(p);
+        }
+    });
+    for (const [catName, items] of Object.entries(categories)) {
+        const isExpanded = expandedCategories[catName] || false;
+        const visibleItems = (isExpanded || filterText) ? items : items.slice(0, 2);
+        const cardsHtml = visibleItems.map(p => `
+            <div class="product-card">
+                <div class="product-name">${esc(p.name)}</div>
+                <div class="product-footer">
+                    <span class="product-price">$${p.price.toFixed(2)}</span>
+                    <button class="add-btn" onclick="addToCart('${p.id}')">Add</button>
+                </div>
+            </div>`).join('');
+        const toggleBtnText = isExpanded ? 'Show Less' : `Show More (${items.length - 2} more)`;
+        const showToggle = items.length > 2 && !filterText;
+        container.innerHTML += `
+            <div class="category-container">
+                <div class="category-header">
+                    <span>${esc(catName.toUpperCase())}</span>
+                    ${showToggle ? `<button class="show-more-btn" onclick="toggleCategory('${catName}')">${toggleBtnText}</button>` : ''}
+                </div>
+                <div class="product-grid">${cardsHtml}</div>
+            </div>`;
+    }
+}
+
+function toggleCategory(catName) {
+    expandedCategories[catName] = !expandedCategories[catName];
+    renderCatalog(document.getElementById('catalogSearch').value.toLowerCase());
+}
+function filterCatalog() {
+    renderCatalog(document.getElementById('catalogSearch').value.toLowerCase());
+}
+
+async function addToCart(id) {
+    try { applyCart(await api("/api/cart/add", { product_id: id })); } catch (e) { alert(e.message); }
+}
+async function removeFromCart(id) {
+    try { applyCart(await api("/api/cart/remove", { product_id: id })); } catch (e) { alert(e.message); }
+}
+function applyCart(data) { cart = data.cart; updateCartUI(); }
+
+function updateCartUI() {
+    const cartItems = document.getElementById('cartItems');
+    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const count = cart.reduce((s, i) => s + i.qty, 0);
+    document.getElementById('cartTotal').innerText = `$${total.toFixed(2)}`;
+    document.getElementById('itemCount').innerText = `${count} item${count === 1 ? '' : 's'}`;
+    const fill = document.getElementById('budgetBarFill');
+    fill.style.width = `${Math.min(100, (total / budgetLimit) * 100)}%`;
+    fill.style.backgroundColor = total > budgetLimit ? '#f87171' : '#34d399';
+    document.getElementById('budgetText').innerText = `$${total.toFixed(2)} / $${budgetLimit} limit`;
+    if (!cart.length) {
+        cartItems.innerHTML = `<li style="color: #6b7280; text-align: center; font-size: 10px; padding: 2px;">Cart is empty</li>`;
+        return;
+    }
+    cartItems.innerHTML = cart.map(i => `
+        <li class="cart-item">
+            <span>${esc(i.name)} × ${i.qty} ($${(i.price * i.qty).toFixed(2)})</span>
+            <button class="remove-btn" onclick="removeFromCart('${i.id}')">Remove</button>
+        </li>`).join('');
+}
+
+function chatAdd(html, style = '') {
+    const chatBox = document.getElementById('chatBox');
+    const d = document.createElement('div');
+    d.className = 'message agent';
+    if (style) d.setAttribute('style', style);
+    d.innerHTML = html;
+    chatBox.appendChild(d);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return d;
+}
+
+async function handleAIQuery() {
+    const input = document.getElementById('userInput');
+    const query = input.value.trim();
+    if (!query) return;
+    input.value = '';
+    chatAdd(`You: ${esc(query)}`, 'text-align: right; background: rgba(212,175,55,0.1);');
+    const m = query.match(/\$\s?(\d+(?:\.\d+)?)/);
+    if (m) budgetLimit = Number(m[1]);
+    const thinking = chatAdd('Agent is thinking...');
+    try {
+        const data = await api("/api/chat", { message: query });
+        thinking.remove();
+        const bubble = chatAdd(`AI Assistant: ${esc(data.reply)}`);
+        applyCart(data);
+        if (data.checkout && data.checkout.approveUrl) {
+            const b = document.createElement('button');
+            b.className = 'fake-pay-btn';
+            b.style.marginTop = '6px';
+            b.textContent = `Approve $${data.checkout.total} with PayPal`;
+            b.onclick = () => openPayPal(data.checkout.approveUrl);
+            bubble.appendChild(b);
+        }
+    } catch (e) {
+        thinking.remove();
+        chatAdd(`Error: ${esc(e.message)}`, 'border-left-color:#f87171');
+    }
+}
+
+function openPayPal(url) { window.open(url, 'paypal', 'width=480,height=700'); }
+
+async function checkout() {
+    if (!cart.length) { alert("Your cart is empty! Add some items first."); return; }
+    try {
+        const data = await api("/api/checkout", {});
+        openPayPal(data.checkout.approveUrl);
+    } catch (e) { alert("Checkout failed: " + e.message); }
+}
+
+// The PayPal return page (served by our own server) reports the result back here.
+window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin || !e.data || e.data.type !== 'paypal') return;
+    if (e.data.ok) {
+        saveOrderToHistory(e.data.orderId, cart, e.data.total);
+        chatAdd(`Payment complete: $${esc(e.data.total)} (order ${esc(e.data.orderId)}). Thank you!`);
+        cart = [];
+        updateCartUI();
+        updateOrdersWidget();
+    } else {
+        chatAdd(e.data.cancelled ? 'Checkout cancelled. No payment was taken.' : 'Payment did not complete.');
+    }
+});
+
+function saveOrderToHistory(orderId, itemsPurchased, total) {
+    let history = [];
+    try { history = JSON.parse(localStorage.getItem('agentCartHistory') || '[]'); } catch (e) {}
+    history.push({ id: orderId, date: new Date().toLocaleDateString(), items: itemsPurchased.map(i => ({ name: i.name })), total: Number(total).toFixed(2) });
+    try { localStorage.setItem('agentCartHistory', JSON.stringify(history)); } catch (e) {}
+}
+function loadHistory() {
+    try { return JSON.parse(localStorage.getItem('agentCartHistory') || '[]'); } catch (e) { return []; }
+}
+
+function updateOrdersWidget() {
+    const history = loadHistory();
+    const listEl = document.getElementById('myOrdersWidgetList');
+    document.getElementById('orderCountBadge').innerText = `${history.length} completed`;
+    if (!history.length) {
+        listEl.innerHTML = `<div style="color: #6b7280; text-align: center; font-size: 10px; padding: 4px;">No recent orders placed</div>`;
+        return;
+    }
+    listEl.innerHTML = history.slice(-3).reverse().map(o => `
+        <div class="order-row">
+            <span><strong>#${esc(o.id)}</strong> (${o.items.length} items)</span>
+            <span style="color: #ff9d00; font-weight: 700;">$${esc(o.total)}</span>
+        </div>`).join('');
+}
+
+function openOrderHistory() {
+    const history = loadHistory();
+    const listEl = document.getElementById('historyList');
+    listEl.innerHTML = history.length
+        ? history.slice().reverse().map(o => `
+            <div class="history-item">
+                <strong>Order #${esc(o.id)}</strong> (${esc(o.date)})<br>
+                Items: ${o.items.map(i => esc(i.name)).join(', ')}<br>
+                <strong>Total: $${esc(o.total)}</strong>
+            </div>`).join('')
+        : `<div style="color: #6b7280; text-align: center;">No past orders found.</div>`;
+    document.getElementById('historyModal').style.display = 'flex';
+}
+function closeHistoryModal() { document.getElementById('historyModal').style.display = 'none'; }
+
+init();
+</script>
+
+</body>
+</html>
