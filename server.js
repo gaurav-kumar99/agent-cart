@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-const BASE_URL = process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`;
+const BASE_URL = process.env.PUBLIC_BASE_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 
 // Which AI runs the agent: claude (needs ANTHROPIC_API_KEY), gemini (free GEMINI_API_KEY), or demo (no keys).
 function pickProvider() {
@@ -175,9 +175,11 @@ async function turnGemini(session, message) {
           systemInstruction: { parts: [{ text: SYSTEM }] },
           tools: GEMINI_TOOLS,
           contents: session.gemini
-        })
+        }),
+        signal: AbortSignal.timeout(25000)
       }
     );
+    console.log(`Gemini ${GEMINI_MODEL} step ${step}: HTTP ${res.status}`);
     const data = await res.json();
     if (!res.ok) throw new Error(`Gemini error ${res.status}: ${data?.error?.message || JSON.stringify(data)}`);
     const content = data.candidates?.[0]?.content;
@@ -260,7 +262,8 @@ app.post("/api/chat", async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    const msg = e.name === "TimeoutError" ? "The AI took too long to answer. Please try again." : e.message;
+    res.status(500).json({ error: msg });
   }
 });
 
