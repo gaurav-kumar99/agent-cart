@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentCart - AI Shopping & Checkout Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Official PayPal JavaScript SDK -->
+    <script src="https://www.paypal.com/sdk/js?client-id=test&currency=USD"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #111318 0%, #1c2029 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; color: #f3f4f6; }
+        
+        .app-container { width: 100%; max-width: 1050px; background: #181c24; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); overflow: hidden; display: flex; flex-direction: column; border: 1px solid rgba(212, 175, 55, 0.2); }
+        
+        .main-layout { display: grid; grid-template-columns: 1.4fr 1fr; height: 720px; }
+        @media(max-width: 768px) { .main-layout { grid-template-columns: 1fr; height: auto; } }
+
+        /* Left Side: Store & Categorized Products */
+        .store-section { padding: 24px; border-right: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; gap: 14px; background: #181c24; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-icon { font-size: 24px; background: linear-gradient(135deg, #6b1d2f 0%, #d4af37 100%); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: white; box-shadow: 0 4px 10px rgba(107, 29, 47, 0.4); }
+        .header h1 { font-size: 18px; font-weight: 700; background: linear-gradient(to right, #d4af37, #ff9d00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header p { font-size: 12px; color: #9ca3af; }
+
+        /* Profile Icon */
+        .profile-icon { width: 38px; height: 38px; background: #111318; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #d4af37; font-size: 16px; cursor: pointer; transition: border-color 0.2s; }
+        .profile-icon:hover { border-color: #d4af37; background: rgba(212, 175, 55, 0.1); }
+
+        .search-catalog { width: 100%; background: #111318; border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 10px; padding: 10px 14px; color: white; font-size: 13px; outline: none; transition: border-color 0.2s; }
+        .search-catalog:focus { border-color: #d4af37; }
+
+        /* Category Sections */
+        .category-container { display: flex; flex-direction: column; gap: 10px; }
+        .category-header { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; color: #d4af37; border-bottom: 1px solid rgba(212, 175, 55, 0.15); padding-bottom: 4px; margin-top: 6px; }
+        .show-more-btn { background: none; border: none; color: #ff9d00; font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 6px; }
+        .show-more-btn:hover { text-decoration: underline; }
+
+        .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .product-card { background: #111318; border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s; }
+        .product-card:hover { border-color: #d4af37; transform: translateY(-1px); }
+        .product-name { font-size: 11px; font-weight: 600; color: #e5e7eb; margin-bottom: 4px; line-height: 1.2; }
+        .product-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+        .product-price { font-size: 12px; font-weight: 700; color: #ff9d00; }
+        .add-btn { background: #6b1d2f; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .add-btn:hover { background: #84243b; }
+
+        /* Right Side: AI Assistant & Cart */
+        .assistant-section { padding: 24px; display: flex; flex-direction: column; background: #111318; gap: 10px; overflow: hidden; }
+        
+        .chat-box { height: 70px; background: #181c24; border-radius: 12px; padding: 8px; overflow-y: auto; font-size: 11px; display: flex; flex-direction: column; gap: 4px; border: 1px solid rgba(255,255,255,0.05); }
+        .message.agent { color: #d1d5db; background: rgba(107, 29, 47, 0.15); padding: 5px 8px; border-radius: 6px; border-left: 3px solid #d4af37; }
+        
+        .input-group { display: flex; gap: 6px; }
+        .input-group input { flex: 1; background: #181c24; border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 8px 10px; color: white; font-size: 12px; outline: none; }
+        .input-group input:focus { border-color: #d4af37; }
+        .input-group button { background: #d4af37; color: #111; border: none; padding: 0 14px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: background 0.2s; font-size: 12px; }
+        .input-group button:hover { background: #e5be3b; }
+
+        /* Cart & Checkout */
+        .cart-box { background: #181c24; border-radius: 12px; padding: 10px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .cart-title { font-size: 12px; font-weight: 600; color: #d4af37; display: flex; justify-content: space-between; }
+        .cart-items { list-style: none; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; max-height: 65px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #d1d5db; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 6px; border-left: 2px solid #6b1d2f; }
+        
+        .remove-btn { background: transparent; border: none; color: #f87171; cursor: pointer; font-size: 10px; font-weight: 600; padding: 2px 4px; border-radius: 4px; transition: background 0.2s; }
+        .remove-btn:hover { background: rgba(248, 113, 113, 0.1); }
+
+        /* Budget Bar */
+        .budget-bar-container { background: #111318; border-radius: 4px; height: 5px; width: 100%; overflow: hidden; margin-top: 2px; }
+        .budget-bar-fill { background: #34d399; height: 100%; width: 0%; transition: width 0.3s; }
+
+        /* Order Details Info Box */
+        .order-meta { background: rgba(17, 19, 24, 0.6); border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 6px; padding: 6px 8px; font-size: 10px; color: #9ca3af; display: flex; flex-direction: column; gap: 2px; }
+        .order-meta div { display: flex; justify-content: space-between; }
+        .order-meta span:last-child { color: #e5e7eb; font-weight: 500; }
+
+        .cart-total { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: white; border-top: 1px dashed rgba(212, 175, 55, 0.2); padding-top: 4px; }
+        
+        /* Payment Buttons Group */
+        .payment-buttons { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+        .fake-pay-btn { background: #6b1d2f; color: white; border: none; width: 100%; padding: 9px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; transition: background 0.2s; border: 1px solid rgba(212, 175, 55, 0.3); }
+        .fake-pay-btn:hover { background: #84243b; }
+        
+        #paypal-button-container { margin-top: 2px; }
+
+        /* Footer Watermark */
+        .footer-watermark { background: #13161d; border-top: 1px solid rgba(212, 175, 55, 0.15); padding: 8px 24px; text-align: center; font-size: 11px; color: #9ca3af; letter-spacing: 0.5px; }
+        .footer-watermark span { color: #d4af37; font-weight: 600; }
+
+        /* Modal & History Drawer */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #181c24; padding: 25px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; border: 1px solid #d4af37; max-height: 80vh; overflow-y: auto; }
+        .modal h3 { color: #d4af37; margin-bottom: 8px; }
+        .modal p { color: #9ca3af; font-size: 13px; margin-bottom: 20px; }
+        .history-list { text-align: left; font-size: 11px; color: #d1d5db; display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; max-height: 200px; overflow-y: auto; }
+        .history-item { background: #111318; padding: 8px; border-radius: 6px; border-left: 2px solid #d4af37; }
+        .modal button { background: #6b1d2f; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; }
+        .modal button:hover { background: #84243b; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="main-layout">
+        <!-- Left: Store Catalog with Categorized Sections & Show More -->
+        <div class="store-section">
+            <div class="header">
+                <div class="header-left">
+                    <div class="header-icon">🛍️</div>
+                    <div>
+                        <h1>AgentCart</h1>
+                        <p>AI-Powered Smart Catalog</p>
+                    </div>
+                </div>
+                <div class="profile-icon" title="Gaurav Kumar - Click for Order History" onclick="openOrderHistory()">👤</div>
+            </div>
+
+            <input type="text" class="search-catalog" id="catalogSearch" placeholder="Filter 150+ products..." oninput="filterCatalog()" />
+            
+            <div id="categorizedCatalog" style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto;">
+                <!-- Dynamically rendered categories -->
+            </div>
+        </div>
+
+        <!-- Right: AI Chat & Cart -->
+        <div class="assistant-section">
+            <div style="font-size: 11px; font-weight: 600; color: #d4af37;">🤖 Agent Assistant (Gemini AI Enabled)</div>
+            <div class="chat-box" id="chatBox">
+                <div class="message agent">Hi User! Ask me to build a bundle (e.g. "gaming setup under $150") or add items manually.</div>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="userInput" placeholder="Ask AI to pick items..." onkeypress="if(event.key === 'Enter') handleAIQuery()" />
+                <button onclick="handleAIQuery()">Ask</button>
+            </div>
+
+            <div class="cart-box">
+                <div class="cart-title">
+                    <span>🛒 Your Cart</span>
+                    <span id="itemCount">0 items</span>
+                </div>
+                <ul class="cart-items" id="cartItems">
+                    <li style="color: #6b7280; text-align: center; font-size: 11px; padding: 4px;">Cart is empty</li>
+                </ul>
+
+                <div style="font-size: 9px; color: #9ca3af; display: flex; justify-content: space-between; margin-top: 2px;">
+                    <span>Budget Usage</span>
+                    <span id="budgetText">$0.00 / $200 limit</span>
+                </div>
+                <div class="budget-bar-container">
+                    <div class="budget-bar-fill" id="budgetBarFill"></div>
+                </div>
+
+                <div class="order-meta">
+                    <div><span>🚚 Delivery:</span> <span>2-3 Business Days</span></div>
+                    <div><span>💳 Payment:</span> <span>PayPal / Test Mode</span></div>
+                    <div><span>📍 Address:</span> <span>Tech Park, Sector 5</span></div>
+                </div>
+
+                <div class="cart-total">
+                    <span>Total</span>
+                    <span id="cartTotal" style="color: #ff9d00;">$0.00</span>
+                </div>
+                
+                <!-- Payment Actions -->
+                <div class="payment-buttons">
+                    <button class="fake-pay-btn" onclick="triggerFakePayment()">⚡ Test Payment (Instant Simulation)</button>
+                    <div id="paypal-button-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Watermark -->
+    <div class="footer-watermark">
+        made by <span>ig:grvxkr</span> in <span>India</span> 🇮🇳
+    </div>
+</div>
+
+<!-- Order History Modal -->
+<div class="modal" id="historyModal">
+    <div class="modal-content">
+        <h3>👤 Gaurav's Profile & Orders</h3>
+        <p style="font-size: 11px; margin-bottom: 10px;">Your saved past purchases and sandbox receipts:</p>
+        <div class="history-list" id="historyList">
+            <div style="color: #6b7280; text-align: center;">No past orders found.</div>
+        </div>
+        <button onclick="closeHistoryModal()">Close</button>
+    </div>
+</div>
+
+<script>
+const products = [
+    // Gaming
+    { id: 7, name: "Wireless Gaming Mouse", price: 45.00, category: "gaming" },
+    { id: 8, name: "Mechanical Keyboard", price: 79.99, category: "gaming" },
+    { id: 9, name: "RGB Gaming Mousepad", price: 19.99, category: "gaming" },
+    { id: 57, name: "Ultra-Wide Gaming Monitor", price: 349.99, category: "gaming" },
+    { id: 58, name: "Mechanical Number Pad", price: 29.99, category: "gaming" },
+    { id: 122, name: "Mouse Bungee Cord Manager", price: 14.00, category: "gaming" },
+    { id: 123, name: "Gaming Controller Wireless", price: 49.99, category: "gaming" },
+    { id: 124, name: "VR Headset Strap Comfort", price: 29.00, category: "gaming" },
+    { id: 125, name: "Console Cooling Fan Stand", price: 35.00, category: "gaming" },
+    { id: 126, name: "Thumb Grips for Controller", price: 7.99, category: "gaming" },
+
+    // Coffee
+    { id: 4, name: "Manual Burr Grinder", price: 38.50, category: "coffee" },
+    { id: 5, name: "Insulated Travel Mug", price: 24.99, category: "coffee" },
+    { id: 6, name: "Specialty Coffee Beans", price: 18.00, category: "coffee" },
+    { id: 16, name: "Aeropress Coffee Maker", price: 39.95, category: "coffee" },
+    { id: 17, name: "Gooseneck Kettle", price: 48.00, category: "coffee" },
+    { id: 75, name: "French Press Coffee Maker", price: 26.00, category: "coffee" },
+    { id: 76, name: "Cold Brew Pitcher", price: 28.00, category: "coffee" },
+    { id: 77, name: "Pour Over Dripper Set", price: 22.00, category: "coffee" },
+    { id: 78, name: "Ceramic Coffee Canister", price: 19.99, category: "coffee" },
+
+    // Outdoor & Fitness
+    { id: 1, name: "Waterproof Backpack", price: 49.99, category: "outdoor" },
+    { id: 2, name: "Trail Trekking Poles", price: 35.00, category: "outdoor" },
+    { id: 3, name: "Portable Headlamp", price: 15.00, category: "outdoor" },
+    { id: 18, name: "Camping Hammock", price: 29.99, category: "outdoor" },
+    { id: 19, name: "Sleeping Pad", price: 42.00, category: "outdoor" },
+    { id: 20, name: "Multi-Tool Pocket Knife", price: 27.50, category: "outdoor" },
+    { id: 79, name: "Camping Air Mattress", price: 54.00, category: "outdoor" },
+    { id: 80, name: "Trekking Backpack 50L", price: 89.99, category: "outdoor" },
+    { id: 81, name: "Waterproof Rain Jacket", price: 65.00, category: "outdoor" },
+    { id: 82, name: "Folding Camping Chair", price: 32.00, category: "outdoor" },
+    { id: 26, name: "Fitness Resistance Bands", price: 18.50, category: "fitness" },
+    { id: 27, name: "Yoga Mat Pro", price: 35.00, category: "fitness" },
+    { id: 28, name: "Adjustable Dumbbells Set", price: 85.00, category: "fitness" },
+    { id: 29, name: "Jump Rope Speed Cable", price: 12.00, category: "fitness" },
+    { id: 30, name: "Foam Roller for Muscles", price: 21.99, category: "fitness" },
+    { id: 54, name: "Smart Fitness Watch", price: 129.99, category: "fitness" },
+    { id: 86, name: "Running Shoes Lightweight", price: 85.00, category: "fitness" },
+    { id: 87, name: "Gym Duffel Bag", price: 39.99, category: "fitness" },
+    { id: 88, name: "Protein Shaker Bottle", price: 11.99, category: "fitness" },
+    { id: 89, name: "Kettlebell 20lbs", price: 42.00, category: "fitness" },
+
+    // Office & Tech
+    { id: 21, name: "USB-C Fast Charger", price: 25.00, category: "tech" },
+    { id: 22, name: "MagSafe Wireless Pad", price: 29.00, category: "tech" },
+    { id: 23, name: "Laptop Stand", price: 32.50, category: "tech" },
+    { id: 24, name: "Desk LED Light Bar", price: 36.00, category: "tech" },
+    { id: 25, name: "Portable Power Bank 20k", price: 49.00, category: "tech" },
+    { id: 36, name: "Desk Organizer Tray", price: 15.00, category: "office" },
+    { id: 37, name: "Ergonomic Mouse Pad", price: 12.50, category: "office" },
+    { id: 38, name: "Leather Notebook Journal", price: 19.99, category: "office" },
+    { id: 39, name: "Gel Ink Pens Set", price: 9.99, category: "office" },
+    { id: 40, name: "Desktop Whiteboard", price: 22.00, category: "office" },
+    { id: 55, name: "Ergonomic Office Chair", price: 199.99, category: "office" },
+    { id: 56, name: "Standing Desk Converter", price: 149.00, category: "office" },
+    { id: 59, name: "USB-C Multi-Port Hub", price: 34.50, category: "tech" },
+    { id: 60, name: "External SSD 1TB", price: 99.00, category: "tech" },
+
+    // Kitchen & Home
+    { id: 13, name: "Stainless Steel Water Bottle", price: 22.50, category: "kitchen" },
+    { id: 14, name: "Chef Kitchen Knife", price: 34.00, category: "kitchen" },
+    { id: 15, name: "Digital Kitchen Scale", price: 16.99, category: "kitchen" },
+    { id: 71, name: "Cast Iron Skillet 10-inch", price: 29.95, category: "kitchen" },
+    { id: 72, name: "Dutch Oven 6-Quart", price: 79.99, category: "kitchen" },
+    { id: 73, name: "Silicone Baking Mats (3pk)", price: 14.99, category: "kitchen" },
+    { id: 33, name: "Mini Desk Fan", price: 18.99, category: "home" },
+    { id: 34, name: "Memory Foam Pillow", price: 44.00, category: "home" },
+    { id: 35, name: "Scented Soy Candle", price: 16.50, category: "home" },
+    { id: 64, name: "Automatic Pet Feeder", price: 65.00, category: "home" },
+    { id: 65, name: "Robot Vacuum Cleaner", price: 229.99, category: "home" },
+    { id: 66, name: "Air Purifier HEPA", price: 89.99, category: "home" }
+];
+
+let cart = [];
+let expandedCategories = {};
+
+function renderCatalog(filterText = '') {
+    const container = document.getElementById('categorizedCatalog');
+    container.innerHTML = '';
+
+    const categories = {};
+    products.forEach(p => {
+        if (!filterText || p.name.toLowerCase().includes(filterText) || p.category.includes(filterText)) {
+            if (!categories[p.category]) categories[p.category] = [];
+            categories[p.category].push(p);
+        }
+    });
+
+    for (const [catName, items] of Object.entries(categories)) {
+        const isExpanded = expandedCategories[catName] || false;
+        const visibleItems = isExpanded ? items : items.slice(0, 2);
+
+        let cardsHtml = '';
+        visibleItems.forEach(p => {
+            cardsHtml += `
+                <div class="product-card">
+                    <div class="product-name">${p.name}</div>
+                    <div class="product-footer">
+                        <span class="product-price">$${p.price.toFixed(2)}</span>
+                        <button class="add-btn" onclick="addToCart('${p.name}', ${p.price})">Add</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        const toggleBtnText = isExpanded ? 'Show Less' : `Show More (${items.length - 2} more)`;
+        const showToggle = items.length > 2 && !filterText;
+
+        container.innerHTML += `
+            <div class="category-container">
+                <div class="category-header">
+                    <span>${catName.toUpperCase()}</span>
+                    ${showToggle ? `<button class="show-more-btn" onclick="toggleCategory('${catName}')">${toggleBtnText}</button>` : ''}
+                </div>
+                <div class="product-grid">
+                    ${cardsHtml}
+                </div>
+            </div>
+        `;
+    }
+}
+
+function toggleCategory(catName) {
+    expandedCategories[catName] = !expandedCategories[catName];
+    renderCatalog(document.getElementById('catalogSearch').value.toLowerCase());
+}
+
+function filterCatalog() {
+    const query = document.getElementById('catalogSearch').value.toLowerCase();
+    renderCatalog(query);
+}
+
+renderCatalog();
+
+function addToCart(name, price) {
+    cart.push({ name, price });
+    updateCartUI();
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    updateCartUI();
+}
+
+function updateCartUI() {
+    const cartItems = document.getElementById('cartItems');
+    const cartTotal = document.getElementById('cartTotal');
+    const itemCount = document.getElementById('itemCount');
+    const budgetBarFill = document.getElementById('budgetBarFill');
+    const budgetText = document.getElementById('budgetText');
+    
+    if (cart.length === 0) {
+        cartItems.innerHTML = `<li style="color: #6b7280; text-align: center; font-size: 11px; padding: 4px;">Cart is empty</li>`;
+        cartTotal.innerText = '$0.00';
+        itemCount.innerText = '0 items';
+        budgetBarFill.style.width = '0%';
+        budgetText.innerText = '$0.00 / $200 limit';
+        return;
+    }
+
+    cartItems.innerHTML = '';
+    let total = 0;
+    cart.forEach((item, index) => {
+        total += item.price;
+        cartItems.innerHTML += `
+            <li class="cart-item">
+                <span>${item.name} ($${item.price.toFixed(2)})</span>
+                <button class="remove-btn" onclick="removeFromCart(${index})">Remove</button>
+            </li>
+        `;
+    });
+
+    cartTotal.innerText = `$${total.toFixed(2)}`;
+    itemCount.innerText = `${cart.length} item${cart.length > 1 ? 's' : ''}`;
+    
+    const budgetLimit = 200;
+    let percentage = (total / budgetLimit) * 100;
+    if (percentage > 100) percentage = 100;
+    budgetBarFill.style.width = `${percentage}%`;
+    budgetBarFill.style.backgroundColor = total > budgetLimit ? '#f87171' : '#34d399';
+    budgetText.innerText = `$${total.toFixed(2)} / $${budgetLimit} limit`;
+}
+
+async function handleAIQuery() {
+    const input = document.getElementById('userInput');
+    const chatBox = document.getElementById('chatBox');
+    const query = input.value.trim();
+    if (!query) return;
+
+    chatBox.innerHTML += `<div class="message agent" style="border-left-color: #d4af37; text-align: right; background: rgba(212,175,55,0.1);">You: ${query}</div>`;
+    input.value = '';
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    setTimeout(() => {
+        const lowerQ = query.toLowerCase();
+        let matchedItems = products.filter(p => lowerQ.split(' ').some(word => word.length > 3 && (p.name.toLowerCase().includes(word) || p.category.includes(word))));
+        
+        if (matchedItems.length === 0) {
+            matchedItems = [products[Math.floor(Math.random() * products.length)], products[Math.floor(Math.random() * products.length)]];
+        } else {
+            matchedItems = matchedItems.slice(0, 3);
+        }
+
+        chatBox.innerHTML += `<div class="message agent">Gemini AI: Built a custom bundle of ${matchedItems.length} items for you!</div>`;
+        cart = matchedItems.map(p => ({ name: p.name, price: p.price }));
+        updateCartUI();
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }, 600);
+}
+
+// Instant Simulation Test Payment Handler
+function triggerFakePayment() {
+    let totalVal = cart.reduce((sum, item) => sum + item.price, 0);
+    if (totalVal <= 0) {
+        alert("Your cart is empty! Add some items before testing payment.");
+        return;
+    }
+    let orderId = 'TEST-SIM-' + Math.floor(Math.random() * 90000 + 10000);
+    saveOrderToHistory(orderId, cart);
+    alert(`⚡ [Test Mode] Fake Payment Successful!\nOrder ID: ${orderId}\nTotal: $${totalVal.toFixed(2)}`);
+    cart = [];
+    updateCartUI();
+}
+
+// Official PayPal Smart Buttons
+paypal.Buttons({
+    createOrder: function(data, actions) {
+        let totalVal = cart.reduce((sum, item) => sum + item.price, 0).toFixed(2);
+        if (totalVal <= 0) {
+            alert("Your cart is empty!");
+            return;
+        }
+        return actions.order.create({
+            purchase_units: [{ amount: { value: totalVal } }]
+        });
+    },
+    onApprove: function(data, actions) {
+        return actions.order.capture().then(function(orderData) {
+            let orderId = orderData.id || 'AC-' + Math.floor(Math.random() * 90000 + 10000);
+            saveOrderToHistory(orderId, cart);
+            alert(`🎉 PayPal Sandbox Transaction successful! Order ID: ${orderId}`);
+            cart = [];
+            updateCartUI();
+        });
+    }
+}).render('#paypal-button-container');
+
+function saveOrderToHistory(orderId, itemsPurchased) {
+    let history = JSON.parse(localStorage.getItem('agentCartHistory') || '[]');
+    history.push({
+        id: orderId,
+        date: new Date().toLocaleDateString(),
+        items: [...itemsPurchased],
+        total: itemsPurchased.reduce((s, i) => s + i.price, 0).toFixed(2)
+    });
+    localStorage.setItem('agentCartHistory', JSON.stringify(history));
+}
+
+function openOrderHistory() {
+    let history = JSON.parse(localStorage.getItem('agentCartHistory') || '[]');
+    let listEl = document.getElementById('historyList');
+    listEl.innerHTML = '';
+    
+    if (history.length === 0) {
+        listEl.innerHTML = `<div style="color: #6b7280; text-align: center;">No past orders found.</div>`;
+    } else {
+        history.reverse().forEach(order => {
+            listEl.innerHTML += `
+                <div class="history-item">
+                    <strong>Order #${order.id}</strong> (${order.date})<br>
+                    Items: ${order.items.map(i => i.name).join(', ')}<br>
+                    <strong>Total: $${order.total}</strong>
+                </div>
+            `;
+        });
+    }
+    document.getElementById('historyModal').style.display = 'flex';
+}
+
+function closeHistoryModal() {
+    document.getElementById('historyModal').style.display = 'none';
+}
+</script>
+
+</body>
+</html>
